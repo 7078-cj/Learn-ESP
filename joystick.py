@@ -6,7 +6,7 @@ yAxis = ADC(Pin(2))
 button = Pin(42, Pin.IN, Pin.PULL_UP)
 led = PWM(Pin(40))
 led.freq(2000)
-led.duty(0)  # Start with LED off
+led.duty(0)  # type: ignore # Start with LED off
 
 while True:
     xValue = xAxis.read_u16()
@@ -23,6 +23,6 @@ while True:
 
     brightness = int(xValue / 64)  # 65535 / 1023 = 64
     
-    led.duty(brightness)
+    led.duty(brightness) # type: ignore
     print("X:", xValue, "Brightness:", brightness)
     utime.sleep(0.2)
