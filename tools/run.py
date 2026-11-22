@@ -9,7 +9,8 @@ Usage:
     python run.py erase                      erase the board's flash
     python run.py flash firmware.bin         flash MicroPython firmware
     python run.py upload                     upload project files to the board
-    python run.py run main.py                run a file without saving it
+    python run.py run lcd.py                 run a file (mounts the current folder)
+    python run.py run lcd.py --no-mount      run a file without mounting
     python run.py repl                       open the REPL
     python run.py ls                         list files on the board
     python run.py reset                      reboot the board
@@ -18,6 +19,14 @@ Usage:
 Options:
     -p COM5 / --port COM5                    choose a port (otherwise auto-detect)
     --baud 460800                            flash baud rate (flash command)
+    --mount-dir DIR                          folder to mount for 'run' (default: .)
+    --no-mount                               'run' without mounting anything
+
+About 'run':
+    'run' mounts your PC folder on the board while the script runs, so imports
+    such as 'from lib.lcd1602 import LCD1602' are read from your computer.
+    Nothing is copied to the board's flash. Run it from your project folder
+    (the one that contains lib/), not from tools/.
 
 Requires: pip install esptool mpremote
 """
@@ -38,7 +47,7 @@ CHIP = "esp32s3"
 SKIP = {
     "run.py", "test.py", "README.md", "__pycache__", ".git", ".vscode",
     ".venv", "venv", "env", "node_modules", ".gitignore", ".micropico",
-    "typings",
+    "typings", "tools",
 }
 SKIP_EXT = {".bin", ".md", ".pyc", ".txt", ".zip"}
 
@@ -137,7 +146,13 @@ def cmd_run(args):
     port = need_port(args)
     if not os.path.isfile(args.file): # type: ignore
         sys.exit(f"File not found: {args.file}")
-    return mpremote(port, "run", args.file)
+    if args.no_mount: # type: ignore
+        return mpremote(port, "run", args.file)
+    mount_dir = args.mount_dir # type: ignore
+    if not os.path.isdir(mount_dir): # type: ignore
+        sys.exit(f"Mount folder not found: {mount_dir}")
+    print(f"Mounting {os.path.abspath(mount_dir)} (nothing is uploaded)") # type: ignore
+    return mpremote(port, "mount", mount_dir, "run", args.file)
 
 
 def cmd_repl(args):
@@ -178,8 +193,10 @@ def build_parser():
     u.add_argument("folder", nargs="?", default=".", help="project folder (default: .)")
     u.set_defaults(func=cmd_upload)
 
-    r = sub.add_parser("run", help="run a file without saving it on the board")
+    r = sub.add_parser("run", help="run a file (mounts the project folder, no upload)")
     r.add_argument("file", nargs="?", default="main.py")
+    r.add_argument("--mount-dir", default=".", help="folder to mount (default: .)")
+    r.add_argument("--no-mount", action="store_true", help="run without mounting")
     r.set_defaults(func=cmd_run)
 
     sub.add_parser("repl", help="open the REPL").set_defaults(func=cmd_repl)
